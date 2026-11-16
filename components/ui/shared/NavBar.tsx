@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client';
 
 import React, { useState } from 'react';
@@ -104,7 +105,7 @@ export const Navbar = ({ user }: NavBarProps) => {
                             title="View Cart"
                         >
                             <ShoppingBag className="w-4 h-4" />
-                            <span className="absolute -top-1.5 -right-1.5 h-4 min-w-[16px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
+                            <span className="absolute -top-1.5 -right-1.5 h-4 min-w-4 px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
                                 2
                             </span>
                         </Link>
