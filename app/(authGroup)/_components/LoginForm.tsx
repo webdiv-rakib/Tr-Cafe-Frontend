@@ -1,11 +1,26 @@
-import React from 'react';
+'use client'
 import Link from 'next/link';
 import { Mail, Lock, ArrowRight } from 'lucide-react';
 import { loginAction } from '../_actions/loginAction'; // adjust path to where your action is
+import { useActionState, useEffect } from 'react';
+import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 const LoginForm = () => {
+  const [state, action, pending] = useActionState(loginAction, false);
+  const router = useRouter();
+  useEffect(() => {
+    if (!state) return;
+    if (state.success) {
+      toast.success(state.message || "Login Successful")
+      router.push("/")
+    }
+    if (!state.success) {
+      toast.error(state.message || "Login Failed")
+    }
+  }, [state])
   return (
-    <form action={loginAction} className="space-y-4">
+    <form action={action} className="space-y-4">
       {/* Email Input */}
       <div>
         <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-700 mb-1.5">
@@ -16,7 +31,7 @@ const LoginForm = () => {
             <Mail className="h-4 w-4" />
           </div>
           <input
-            name="email"                
+            name="email"
             type="email"
             required
             placeholder="student@diu.edu.bd"
@@ -43,7 +58,7 @@ const LoginForm = () => {
             <Lock className="h-4 w-4" />
           </div>
           <input
-            name="password"          
+            name="password"
             type="password"
             required
             placeholder="••••••••"
@@ -56,7 +71,7 @@ const LoginForm = () => {
       <div className="flex items-center">
         <input
           id="remember-me"
-          name="rememberMe"           
+          name="rememberMe"
           type="checkbox"
           className="h-4 w-4 rounded border-neutral-300 text-amber-600 focus:ring-amber-500 cursor-pointer"
         />
