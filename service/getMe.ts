@@ -1,28 +1,37 @@
-'use server'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+'use server';
 
-import { cookies } from "next/headers"
+import { cookies } from 'next/headers';
 
 export const getMe = async () => {
     const cookieStore = await cookies();
-    const accessToken = cookieStore.get("accessToken")?.value;
+    const accessToken = cookieStore.get('accessToken')?.value;
+
     if (!accessToken) {
-        // throw new Error("User Not Logged In")
         return {
             success: false,
-            message: "User Not Logged In"
-        }
+            message: 'User Not Logged In',
+        };
     }
-    const res = await fetch(`${process.env.BACKEND_APP_URL}/api/auth/profile`, {
-        headers: {
-            // Authorization : accessToken as unknown as string,
-            // Authorization: `${accessToken}`,
-            // Authorization: `Bearer ${accessToken}`,
 
-            Cookie: `accessToken=${accessToken}`
-        }
-    });
+    try {
+        const res = await fetch(`${process.env.BACKEND_APP_URL}/api/auth/profile`, {
+            headers: {
+                // Authorization: `Bearer ${accessToken}`,
+                Cookie: `accessToken=${accessToken}`,
+            },
+            next: {
+                revalidate: 60 * 60 * 24,
+                tags: ['my-profile'],
+            },
+        });
 
-    const result = res.json();
-    console.log(result)
-    return result
-}
+        const result = await res.json();
+        return result;
+    } catch (error: any) {
+        return {
+            success: false,
+            message: 'Failed to fetch user profile',
+        };
+    }
+};
