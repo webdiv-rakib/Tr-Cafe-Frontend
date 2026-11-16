@@ -1,10 +1,26 @@
 'use client'
 import Link from 'next/link';
 import { User, Mail, Phone, Lock, ArrowRight } from 'lucide-react';
+import { useActionState, useEffect } from 'react';
+import { registerAction } from '../_actions/registerAction';
+import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 
 const RegisterForm = () => {
+    const router = useRouter();
+    const [state, action, pending] = useActionState(registerAction, false);
+    useEffect(() => {
+        if (!state) return;
+        if (state.success) {
+            toast.success(state.message || "Account Created Successfully")
+            router.push("/login")
+        }
+        if (!state.success) {
+            toast.error(state.message || "Failed")
+        }
+    }, [state, router])
     return (
-        <form className="space-y-4">
+        <form action={action} className="space-y-4">
             {/* Full Name Input */}
             <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-700 mb-1.5">

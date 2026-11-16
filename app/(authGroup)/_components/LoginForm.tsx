@@ -13,12 +13,12 @@ const LoginForm = () => {
     if (!state) return;
     if (state.success) {
       toast.success(state.message || "Login Successful")
-      router.push("/")
+      // router.push("/")
     }
     if (!state.success) {
       toast.error(state.message || "Login Failed")
     }
-  }, [state])
+  }, [state,router])
   return (
     <form action={action} className="space-y-4">
       {/* Email Input */}
