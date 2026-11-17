@@ -202,7 +202,7 @@ const PaymentResultContent = () => {
                                 <div className="flex items-center justify-between gap-4">
                                     <span className="text-neutral-500 shrink-0">Transaction ID</span>
                                     <span
-                                        className="font-mono font-semibold text-neutral-800 truncate max-w-[240px]"
+                                        className="font-mono font-semibold text-neutral-800 truncate max-w-60"
                                         title={displayTranId}
                                     >
                                         {displayTranId}
