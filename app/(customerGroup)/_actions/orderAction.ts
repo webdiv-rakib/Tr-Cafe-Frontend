@@ -138,10 +138,7 @@ export const getMyOrdersAction = async (): Promise<IOrder[]> => {
             headers: {
                 Authorization: `Bearer ${token}`,
             },
-            next: {
-                revalidate: 60,
-                tags: ['my-orders'],
-            },
+            cache: 'no-store', // Always fetch live order & payment status
         });
 
         const result = await res.json();

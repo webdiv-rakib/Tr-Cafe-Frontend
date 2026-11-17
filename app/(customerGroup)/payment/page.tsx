@@ -1,8 +1,8 @@
 'use client';
 
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
     CheckCircle2,
     XCircle,
@@ -14,57 +14,109 @@ import {
     ShoppingBag,
     ShieldCheck,
     Bike,
+    Loader2,
 } from 'lucide-react';
+import { getMyOrdersAction, IOrder } from '../_actions/orderAction';
+import { getOrderDetailsForReceiptAction } from '../_actions/getOrderByIdAction';
+ // Adjust path if needed
 
 type PaymentStatus = 'success' | 'failed' | 'cancelled';
 
 const PaymentResultContent = () => {
+    const router = useRouter();
     const searchParams = useSearchParams();
 
     const urlStatus = searchParams.get('status')?.toLowerCase() as PaymentStatus | undefined;
-    const orderId = searchParams.get('orderId') || 'ORD-8499';
-    const tranId = searchParams.get('tranId') || 'TR-SSL-90481275';
-    const amount = searchParams.get('amount') || '920';
-    const method = searchParams.get('method') || 'SSLCommerz';
+    const orderIdParam = searchParams.get('orderId') || '';
+    const urlTranId =
+        searchParams.get('tranId') ||
+        searchParams.get('transactionId') ||
+        searchParams.get('session_id') ||
+        '';
+    const urlAmount = searchParams.get('amount') || '';
+    const urlMethod = searchParams.get('method') || searchParams.get('provider') || '';
 
-    // Local state defaults to URL param, with a preview switcher so you can inspect all 3 states easily
-    const [previewStatus, setPreviewStatus] = useState<PaymentStatus>(
+    const [orderDetails, setOrderDetails] = useState<IOrder | null>(null);
+    const [isLoading, setIsLoading] = useState<boolean>(true);
+
+    const status: PaymentStatus =
         urlStatus && ['success', 'failed', 'cancelled'].includes(urlStatus)
             ? urlStatus
-            : 'success'
-    );
+            : 'success';
+
+    useEffect(() => {
+        router.refresh();
+
+        let isMounted = true;
+        let attempts = 0;
+        const maxAttempts = 5;
+
+        const fetchOrderReceipt = async () => {
+            attempts += 1;
+
+            let data: IOrder | null = null;
+            if (orderIdParam) {
+                data = await getOrderDetailsForReceiptAction(orderIdParam);
+            } else {
+                // Fallback: if Stripe success_url didn't include orderId, grab most recent order
+                const orders = await getMyOrdersAction();
+                data = orders[0] || null;
+            }
+
+            if (!isMounted) return;
+
+            if (data) {
+                setOrderDetails(data);
+            }
+
+            // If payment succeeded but webhook hasn't saved transactionId yet, retry briefly
+            if (
+                status === 'success' &&
+                !data?.payment?.transactionId &&
+                !urlTranId &&
+                attempts < maxAttempts
+            ) {
+                setTimeout(fetchOrderReceipt, 1500);
+            } else {
+                setIsLoading(false);
+            }
+        };
+
+        fetchOrderReceipt();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [orderIdParam, status, urlTranId, router]);
+
+    const displayOrderId = orderDetails?.id
+        ? `#${orderDetails.id.slice(-8).toUpperCase()}`
+        : orderIdParam
+            ? `#${orderIdParam.slice(-8).toUpperCase()}`
+            : 'N/A';
+
+    const displayTranId =
+        orderDetails?.payment?.transactionId ||
+        urlTranId ||
+        (status === 'success' ? 'Processing Webhook...' : 'Not Generated');
+
+    const displayAmount =
+        orderDetails?.totalAmount ??
+        orderDetails?.payment?.amount ??
+        (urlAmount || '0');
+
+    const displayMethod =
+        orderDetails?.payment?.provider ||
+        urlMethod ||
+        (urlTranId.startsWith('cs_') || urlTranId.startsWith('pi_') ? 'STRIPE' : 'ONLINE');
 
     return (
         <main className="min-h-screen bg-neutral-50 py-10 px-4 sm:px-6 lg:px-8 flex flex-col items-center justify-center">
             <div className="w-full max-w-xl space-y-6">
-
-                {/* Quick Preview State Switcher (Useful during UI design before wiring live gateway callbacks) */}
-                <div className="bg-white rounded-2xl border border-neutral-200/80 p-2 flex items-center justify-between gap-1.5 shadow-2xs">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 pl-2.5">
-                        Preview State:
-                    </span>
-                    <div className="flex items-center gap-1">
-                        {(['success', 'failed', 'cancelled'] as const).map((state) => (
-                            <button
-                                key={state}
-                                type="button"
-                                onClick={() => setPreviewStatus(state)}
-                                className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all cursor-pointer ${previewStatus === state
-                                        ? 'bg-neutral-900 text-amber-400'
-                                        : 'text-neutral-500 hover:bg-neutral-100'
-                                    }`}
-                            >
-                                {state}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Main Result Card */}
                 <div className="bg-white rounded-3xl border border-neutral-200/80 shadow-sm overflow-hidden">
 
                     {/* Top Status Banner */}
-                    {previewStatus === 'success' && (
+                    {status === 'success' && (
                         <div className="bg-neutral-900 p-8 text-center text-white relative overflow-hidden">
                             <div className="absolute top-0 right-0 -mt-10 -mr-10 w-56 h-56 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
                             <div className="relative z-10 flex flex-col items-center">
@@ -84,7 +136,7 @@ const PaymentResultContent = () => {
                         </div>
                     )}
 
-                    {previewStatus === 'failed' && (
+                    {status === 'failed' && (
                         <div className="bg-neutral-900 p-8 text-center text-white relative overflow-hidden">
                             <div className="absolute top-0 right-0 -mt-10 -mr-10 w-56 h-56 bg-red-500/15 rounded-full blur-3xl pointer-events-none" />
                             <div className="relative z-10 flex flex-col items-center">
@@ -104,7 +156,7 @@ const PaymentResultContent = () => {
                         </div>
                     )}
 
-                    {previewStatus === 'cancelled' && (
+                    {status === 'cancelled' && (
                         <div className="bg-neutral-900 p-8 text-center text-white relative overflow-hidden">
                             <div className="absolute top-0 right-0 -mt-10 -mr-10 w-56 h-56 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
                             <div className="relative z-10 flex flex-col items-center">
@@ -118,7 +170,7 @@ const PaymentResultContent = () => {
                                     Checkout Payment Aborted
                                 </h1>
                                 <p className="text-xs sm:text-sm text-neutral-400 mt-2 max-w-md">
-                                    You cancelled the online payment session before completion. You can retry online payment or switch to Cash on Delivery (COD).
+                                    You cancelled the online payment session before completion. You can retry payment from My Orders or switch to Cash on Delivery (COD).
                                 </p>
                             </div>
                         </div>
@@ -126,45 +178,60 @@ const PaymentResultContent = () => {
 
                     {/* Transaction Receipt Body */}
                     <div className="p-6 sm:p-8 space-y-6">
-                        <div className="p-4 sm:p-5 rounded-2xl bg-neutral-50 border border-neutral-200/70 space-y-3 text-xs">
-                            <div className="flex items-center justify-between pb-2.5 border-b border-neutral-200/70">
-                                <span className="font-bold uppercase tracking-wider text-neutral-500 flex items-center gap-1.5">
-                                    <Receipt className="w-3.5 h-3.5 text-amber-600" /> Transaction Summary
-                                </span>
-                                <span className="inline-flex items-center gap-1 font-semibold text-neutral-700">
-                                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> {method}
-                                </span>
+                        {isLoading ? (
+                            <div className="p-8 rounded-2xl bg-neutral-50 border border-neutral-200/70 flex items-center justify-center gap-2 text-xs font-semibold text-neutral-500">
+                                <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
+                                <span>Fetching Stripe transaction ID...</span>
                             </div>
+                        ) : (
+                            <div className="p-4 sm:p-5 rounded-2xl bg-neutral-50 border border-neutral-200/70 space-y-3 text-xs">
+                                <div className="flex items-center justify-between pb-2.5 border-b border-neutral-200/70">
+                                    <span className="font-bold uppercase tracking-wider text-neutral-500 flex items-center gap-1.5">
+                                        <Receipt className="w-3.5 h-3.5 text-amber-600" /> Transaction Summary
+                                    </span>
+                                    <span className="inline-flex items-center gap-1 font-bold uppercase text-neutral-800">
+                                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> {displayMethod}
+                                    </span>
+                                </div>
 
-                            <div className="flex items-center justify-between">
-                                <span className="text-neutral-500">Order Reference</span>
-                                <span className="font-extrabold text-neutral-900">{orderId}</span>
-                            </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-neutral-500">Order Reference</span>
+                                    <span className="font-extrabold text-neutral-900">{displayOrderId}</span>
+                                </div>
 
-                            <div className="flex items-center justify-between">
-                                <span className="text-neutral-500">Transaction ID</span>
-                                <span className="font-mono font-semibold text-neutral-800">{tranId}</span>
-                            </div>
+                                <div className="flex items-center justify-between gap-4">
+                                    <span className="text-neutral-500 shrink-0">Transaction ID</span>
+                                    <span
+                                        className="font-mono font-semibold text-neutral-800 truncate max-w-[240px]"
+                                        title={displayTranId}
+                                    >
+                                        {displayTranId}
+                                    </span>
+                                </div>
 
-                            <div className="flex items-center justify-between">
-                                <span className="text-neutral-500">Delivery Zone</span>
-                                <span className="font-semibold text-neutral-800 inline-flex items-center gap-1">
-                                    <Bike className="w-3.5 h-3.5 text-amber-600" /> DIU Campus (20 BDT Fee)
-                                </span>
-                            </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-neutral-500">Delivery Zone</span>
+                                    <span className="font-semibold text-neutral-800 inline-flex items-center gap-1">
+                                        <Bike className="w-3.5 h-3.5 text-amber-600" />
+                                        {orderDetails?.deliveryZone
+                                            ? orderDetails.deliveryZone.replaceAll('_', ' ')
+                                            : 'DIU Campus (20 BDT Fee)'}
+                                    </span>
+                                </div>
 
-                            <div className="pt-2.5 border-t border-neutral-200/70 flex items-center justify-between">
-                                <span className="font-bold text-neutral-700">
-                                    {previewStatus === 'success' ? 'Amount Paid' : 'Order Amount'}
-                                </span>
-                                <span className="text-lg font-extrabold text-neutral-900">
-                                    {amount} <span className="text-xs font-semibold text-neutral-500">BDT</span>
-                                </span>
+                                <div className="pt-2.5 border-t border-neutral-200/70 flex items-center justify-between">
+                                    <span className="font-bold text-neutral-700">
+                                        {status === 'success' ? 'Amount Paid' : 'Order Amount'}
+                                    </span>
+                                    <span className="text-lg font-extrabold text-neutral-900">
+                                        {displayAmount} <span className="text-xs font-semibold text-neutral-500">BDT</span>
+                                    </span>
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         {/* Action Buttons Based on Status */}
-                        {previewStatus === 'success' ? (
+                        {status === 'success' ? (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <Link
                                     href="/orders"
@@ -186,11 +253,11 @@ const PaymentResultContent = () => {
                         ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <Link
-                                    href="/checkout"
+                                    href="/orders"
                                     className="py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-semibold text-xs shadow-md shadow-amber-500/20 transition-all flex items-center justify-center gap-2"
                                 >
                                     <RotateCcw className="w-4 h-4" />
-                                    <span>Retry Payment / Use COD</span>
+                                    <span>Retry Payment in My Orders</span>
                                 </Link>
 
                                 <Link
