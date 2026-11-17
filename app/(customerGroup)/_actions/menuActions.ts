@@ -29,7 +29,7 @@ export interface IMenuItem {
 
 export const getAllCategories = async (): Promise<ICategory[]> => {
     try {
-        const res = await fetch(`${process.env.BACKEND_APP_URL}/api/categoris`, {
+        const res = await fetch(`${process.env.BACKEND_APP_URL}/api/categories`, {
             next: {
                 revalidate: 3600,
                 tags: ['categories'],
