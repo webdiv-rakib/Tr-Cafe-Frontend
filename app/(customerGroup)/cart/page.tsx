@@ -16,68 +16,36 @@ import {
     ShieldCheck,
     ArrowLeft,
 } from 'lucide-react';
+import { useCart } from './_components/CartContext';
 
-const INITIAL_CART_ITEMS = [
-    {
-        id: '1',
-        name: 'TR Monster Beef Burger',
-        category: 'Burgers',
-        price: 260,
-        quantity: 2,
-        tag: 'Best Seller',
-    },
-    {
-        id: '2',
-        name: 'Loaded Cheesy Fries',
-        category: 'Sides',
-        price: 140,
-        quantity: 1,
-        tag: 'Popular',
-    },
-    {
-        id: '3',
-        name: 'TR Iced Choco Frappe',
-        category: 'Beverages',
-        price: 120,
-        quantity: 2,
-        tag: 'Cool Down',
-    },
-];
 
 const CAMPUS_DROP_POINTS = [
-    'YKSG-2 Hall Gate, DIU Campus',
-    'YKSG-1 Hall Gate, DIU Campus',
-    'Rowshan Ara Hall Gate, DIU Campus',
-    'AB-4 Academic Building Front',
-    'Knowledge Tower / Central Field',
+    'DIU_PERMANENT_CAMPUS',
+    'YOUNUS_KHAN_SCHOLARS_GARGEN_1',
+    'YOUNUS_KHAN_SCHOLARS_GARGEN_2',
+    'YOUNUS_KHAN_SCHOLARS_GARGEN_3',
+    'ROWSHAN_ARA_GARDEN_1',
+    'ROWSHAN_ARA_GARDEN_2',
+    'KHAGAN',
+    'DATTA_PARA',
+    'ASHULIA_BAZAR',
+    'OTHER_NEARBY'
 ];
 
 const CartPage = () => {
-    const [cartItems, setCartItems] = useState(INITIAL_CART_ITEMS);
+    const {
+        items: cartItems,
+        totalItems,
+        subtotal,
+        deliveryFee,
+        grandTotal,
+        updateQuantity,
+        removeItem,
+    } = useCart();
+
     const [deliveryLocation, setDeliveryLocation] = useState(CAMPUS_DROP_POINTS[0]);
+    const [deliveryNote, setDeliveryNote] = useState('');
     const [paymentMethod, setPaymentMethod] = useState<'COD' | 'SSLCOMMERZ' | 'STRIPE'>('COD');
-
-    const DELIVERY_FEE = cartItems.length > 0 ? 20 : 0;
-
-    const updateQuantity = (id: string, delta: number) => {
-        setCartItems((prev) =>
-            prev.map((item) =>
-                item.id === id
-                    ? { ...item, quantity: Math.max(1, item.quantity + delta) }
-                    : item
-            )
-        );
-    };
-
-    const removeItem = (id: string) => {
-        setCartItems((prev) => prev.filter((item) => item.id !== id));
-    };
-
-    const subtotal = cartItems.reduce(
-        (sum, item) => sum + item.price * item.quantity,
-        0
-    );
-    const total = subtotal + DELIVERY_FEE;
 
     return (
         <main className="min-h-screen bg-neutral-50 py-8 px-4 sm:px-6 lg:px-8">
@@ -117,7 +85,7 @@ const CartPage = () => {
                         </div>
                         <h2 className="text-xl font-extrabold text-neutral-900">Your cart is empty</h2>
                         <p className="text-xs text-neutral-500 leading-relaxed">
-                            Looks like you haven&apos;t added any burgers, wings, or chillers yet. Explore our kitchen specials and get hot food delivered across DIU campus!
+                            Looks like you haven&apos;t added any items yet. Explore our menu and get hot food delivered across DIU campus!
                         </p>
                         <Link
                             href="/menu"
@@ -138,34 +106,45 @@ const CartPage = () => {
                             <div className="bg-white rounded-2xl border border-neutral-200/80 shadow-sm overflow-hidden">
                                 <div className="p-5 sm:p-6 border-b border-neutral-100 flex items-center justify-between">
                                     <h2 className="text-base font-bold text-neutral-900">
-                                        Selected Items ({cartItems.reduce((acc, i) => acc + i.quantity, 0)})
+                                        Selected Items ({totalItems})
                                     </h2>
                                     <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600">
-                                        <Bike className="w-3.5 h-3.5" /> Flat 20 BDT DIU Delivery
+                                        <Bike className="w-3.5 h-3.5" /> Flat {deliveryFee} BDT DIU Delivery
                                     </span>
                                 </div>
 
                                 <div className="divide-y divide-neutral-100">
                                     {cartItems.map((item) => (
                                         <div
-                                            key={item.id}
+                                            key={item.menuItemId}
                                             className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-neutral-50/50 transition-colors"
                                         >
-                                            <div className="space-y-1">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
-                                                        {item.category}
-                                                    </span>
-                                                    <span className="px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200/60 text-amber-700 text-[10px] font-semibold">
-                                                        {item.tag}
-                                                    </span>
+                                            <div className="flex items-center gap-4">
+                                                {item.imageUrl ? (
+                                                    <img
+                                                        src={item.imageUrl}
+                                                        alt={item.name}
+                                                        className="h-14 w-14 rounded-xl object-cover border border-neutral-200/70 shrink-0"
+                                                    />
+                                                ) : (
+                                                    <div className="h-14 w-14 rounded-xl bg-neutral-100 border border-neutral-200/70 flex items-center justify-center shrink-0">
+                                                        <UtensilsCrossed className="w-5 h-5 text-amber-500/60" />
+                                                    </div>
+                                                )}
+
+                                                <div className="space-y-1">
+                                                    {item.categoryName && (
+                                                        <span className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 block">
+                                                            {item.categoryName}
+                                                        </span>
+                                                    )}
+                                                    <h3 className="text-sm sm:text-base font-bold text-neutral-900">
+                                                        {item.name}
+                                                    </h3>
+                                                    <p className="text-xs font-semibold text-neutral-500">
+                                                        {item.price} BDT each
+                                                    </p>
                                                 </div>
-                                                <h3 className="text-sm sm:text-base font-bold text-neutral-900">
-                                                    {item.name}
-                                                </h3>
-                                                <p className="text-xs font-semibold text-neutral-500">
-                                                    {item.price} BDT each
-                                                </p>
                                             </div>
 
                                             {/* Quantity Stepper & Subtotal */}
@@ -173,7 +152,7 @@ const CartPage = () => {
                                                 <div className="flex items-center bg-neutral-100 rounded-xl p-1 border border-neutral-200/70">
                                                     <button
                                                         type="button"
-                                                        onClick={() => updateQuantity(item.id, -1)}
+                                                        onClick={() => updateQuantity(item.menuItemId, -1)}
                                                         className="h-7 w-7 rounded-lg bg-white hover:bg-neutral-50 text-neutral-700 flex items-center justify-center shadow-2xs transition-colors cursor-pointer"
                                                         aria-label="Decrease quantity"
                                                     >
@@ -184,7 +163,7 @@ const CartPage = () => {
                                                     </span>
                                                     <button
                                                         type="button"
-                                                        onClick={() => updateQuantity(item.id, 1)}
+                                                        onClick={() => updateQuantity(item.menuItemId, 1)}
                                                         className="h-7 w-7 rounded-lg bg-white hover:bg-neutral-50 text-neutral-700 flex items-center justify-center shadow-2xs transition-colors cursor-pointer"
                                                         aria-label="Increase quantity"
                                                     >
@@ -194,13 +173,14 @@ const CartPage = () => {
 
                                                 <div className="text-right min-w-[76px]">
                                                     <p className="text-sm font-extrabold text-neutral-900">
-                                                        {item.price * item.quantity} <span className="text-[11px] font-semibold text-neutral-500">BDT</span>
+                                                        {item.price * item.quantity}{' '}
+                                                        <span className="text-[11px] font-semibold text-neutral-500">BDT</span>
                                                     </p>
                                                 </div>
 
                                                 <button
                                                     type="button"
-                                                    onClick={() => removeItem(item.id)}
+                                                    onClick={() => removeItem(item.menuItemId)}
                                                     className="p-2 rounded-xl text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-colors cursor-pointer"
                                                     title="Remove item"
                                                 >
@@ -213,7 +193,7 @@ const CartPage = () => {
                             </div>
 
                             {/* DIU Drop-off Point Selector */}
-                            <div className="bg-white rounded-2xl border border-neutral-200/80 shadow-sm p-5 sm:p-6 space-y-4">
+                            {/* <div className="bg-white rounded-2xl border border-neutral-200/80 shadow-sm p-5 sm:p-6 space-y-4">
                                 <div className="flex items-center gap-2">
                                     <div className="h-8 w-8 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 flex items-center justify-center">
                                         <MapPin className="w-4 h-4" />
@@ -252,12 +232,14 @@ const CartPage = () => {
                                         </label>
                                         <input
                                             type="text"
+                                            value={deliveryNote}
+                                            onChange={(e) => setDeliveryNote(e.target.value)}
                                             placeholder="e.g. Call me when reaching main gate"
                                             className="w-full px-3.5 py-2.5 text-xs bg-neutral-50 border border-neutral-200 rounded-xl text-neutral-900 placeholder:text-neutral-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
                                         />
                                     </div>
                                 </div>
-                            </div>
+                            </div> */}
                         </div>
 
                         {/* Right Column (5 cols): Payment Method & Order Summary */}
@@ -277,8 +259,8 @@ const CartPage = () => {
                                     type="button"
                                     onClick={() => setPaymentMethod('COD')}
                                     className={`w-full p-3.5 rounded-xl border text-left transition-all flex items-center justify-between cursor-pointer ${paymentMethod === 'COD'
-                                            ? 'bg-amber-50/70 border-amber-500 ring-2 ring-amber-500/15'
-                                            : 'bg-neutral-50/50 border-neutral-200 hover:bg-neutral-50'
+                                        ? 'bg-amber-50/70 border-amber-500 ring-2 ring-amber-500/15'
+                                        : 'bg-neutral-50/50 border-neutral-200 hover:bg-neutral-50'
                                         }`}
                                 >
                                     <div className="flex items-center gap-3">
@@ -296,8 +278,8 @@ const CartPage = () => {
                                     </div>
                                     <span
                                         className={`h-4 w-4 rounded-full border flex items-center justify-center ${paymentMethod === 'COD'
-                                                ? 'border-amber-600 bg-amber-500'
-                                                : 'border-neutral-300'
+                                            ? 'border-amber-600 bg-amber-500'
+                                            : 'border-neutral-300'
                                             }`}
                                     >
                                         {paymentMethod === 'COD' && (
@@ -310,8 +292,8 @@ const CartPage = () => {
                                     type="button"
                                     onClick={() => setPaymentMethod('SSLCOMMERZ')}
                                     className={`w-full p-3.5 rounded-xl border text-left transition-all flex items-center justify-between cursor-pointer ${paymentMethod === 'SSLCOMMERZ'
-                                            ? 'bg-amber-50/70 border-amber-500 ring-2 ring-amber-500/15'
-                                            : 'bg-neutral-50/50 border-neutral-200 hover:bg-neutral-50'
+                                        ? 'bg-amber-50/70 border-amber-500 ring-2 ring-amber-500/15'
+                                        : 'bg-neutral-50/50 border-neutral-200 hover:bg-neutral-50'
                                         }`}
                                 >
                                     <div className="flex items-center gap-3">
@@ -329,8 +311,8 @@ const CartPage = () => {
                                     </div>
                                     <span
                                         className={`h-4 w-4 rounded-full border flex items-center justify-center ${paymentMethod === 'SSLCOMMERZ'
-                                                ? 'border-amber-600 bg-amber-500'
-                                                : 'border-neutral-300'
+                                            ? 'border-amber-600 bg-amber-500'
+                                            : 'border-neutral-300'
                                             }`}
                                     >
                                         {paymentMethod === 'SSLCOMMERZ' && (
@@ -343,8 +325,8 @@ const CartPage = () => {
                                     type="button"
                                     onClick={() => setPaymentMethod('STRIPE')}
                                     className={`w-full p-3.5 rounded-xl border text-left transition-all flex items-center justify-between cursor-pointer ${paymentMethod === 'STRIPE'
-                                            ? 'bg-amber-50/70 border-amber-500 ring-2 ring-amber-500/15'
-                                            : 'bg-neutral-50/50 border-neutral-200 hover:bg-neutral-50'
+                                        ? 'bg-amber-50/70 border-amber-500 ring-2 ring-amber-500/15'
+                                        : 'bg-neutral-50/50 border-neutral-200 hover:bg-neutral-50'
                                         }`}
                                 >
                                     <div className="flex items-center gap-3">
@@ -362,8 +344,8 @@ const CartPage = () => {
                                     </div>
                                     <span
                                         className={`h-4 w-4 rounded-full border flex items-center justify-center ${paymentMethod === 'STRIPE'
-                                                ? 'border-amber-600 bg-amber-500'
-                                                : 'border-neutral-300'
+                                            ? 'border-amber-600 bg-amber-500'
+                                            : 'border-neutral-300'
                                             }`}
                                     >
                                         {paymentMethod === 'STRIPE' && (
@@ -383,7 +365,7 @@ const CartPage = () => {
                                     <span className="flex items-center gap-1">
                                         DIU Campus Delivery Fee
                                     </span>
-                                    <span className="font-semibold text-amber-600">+{DELIVERY_FEE} BDT</span>
+                                    <span className="font-semibold text-amber-600">+{deliveryFee} BDT</span>
                                 </div>
                                 <div className="flex items-center justify-between text-neutral-500">
                                     <span>Drop-off Point</span>
@@ -395,23 +377,24 @@ const CartPage = () => {
                                 <div className="pt-3 border-t border-neutral-200/80 flex items-center justify-between">
                                     <span className="text-sm font-bold text-neutral-900">Total Payable</span>
                                     <span className="text-xl font-extrabold text-neutral-900">
-                                        {total} <span className="text-xs font-semibold text-neutral-500">BDT</span>
+                                        {grandTotal} <span className="text-xs font-semibold text-neutral-500">BDT</span>
                                     </span>
                                 </div>
                             </div>
 
                             {/* Place Order Button */}
-                            <button
-                                type="button"
-                                className="w-full py-3.5 px-4 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-md shadow-amber-500/20 transition-all flex items-center justify-center gap-2 group cursor-pointer"
+                            <Link
+                                href={`/checkout?location=${encodeURIComponent(deliveryLocation)}&payment=${paymentMethod}${deliveryNote ? `&note=${encodeURIComponent(deliveryNote)}` : ''
+                                    }`}
+                                className="w-full py-3.5 px-4 bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-semibold text-xs sm:text-sm rounded-xl shadow-md shadow-amber-500/20 transition-all flex items-center justify-center gap-2 group"
                             >
                                 <span>
                                     {paymentMethod === 'COD'
-                                        ? 'Place Cash on Delivery Order'
-                                        : `Proceed to ${paymentMethod === 'SSLCOMMERZ' ? 'SSLCommerz' : 'Stripe'}`}
+                                        ? 'Proceed to COD Checkout'
+                                        : `Proceed to ${paymentMethod === 'SSLCOMMERZ' ? 'SSLCommerz' : 'Stripe'} Checkout`}
                                 </span>
                                 <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-                            </button>
+                            </Link>
                         </div>
 
                     </div>

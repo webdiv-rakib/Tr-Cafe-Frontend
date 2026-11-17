@@ -15,7 +15,8 @@ import {
     SlidersHorizontal,
 } from 'lucide-react';
 import { ICategory, IMenuItem } from '../../_actions/menuActions';
-
+import { useCart } from '../../cart/_components/CartContext';
+ // Adjust import path if your CartContext is elsewhere
 
 interface MenuCatalogProps {
     categories: ICategory[];
@@ -26,25 +27,17 @@ export const MenuCatalog = ({ categories, menuItems }: MenuCatalogProps) => {
     const [selectedCategoryId, setSelectedCategoryId] = useState<string>('ALL');
     const [searchQuery, setSearchQuery] = useState('');
     const [specialsOnly, setSpecialsOnly] = useState(false);
-    const [quantities, setQuantities] = useState<Record<string, number>>({});
 
-    const handleAdd = (id: string) => {
-        setQuantities((prev) => ({
-            ...prev,
-            [id]: (prev[id] || 0) + 1,
-        }));
-    };
+    const {
+        items: cartItems,
+        totalItems,
+        subtotal,
+        addItem,
+        updateQuantity,
+    } = useCart();
 
-    const handleRemove = (id: string) => {
-        setQuantities((prev) => {
-            const current = prev[id] || 0;
-            if (current <= 1) {
-                const updated = { ...prev };
-                delete updated[id];
-                return updated;
-            }
-            return { ...prev, [id]: current - 1 };
-        });
+    const getItemQuantity = (id: string) => {
+        return cartItems.find((item) => item.menuItemId === id)?.quantity || 0;
     };
 
     const filteredItems = menuItems.filter((item) => {
@@ -61,12 +54,6 @@ export const MenuCatalog = ({ categories, menuItems }: MenuCatalogProps) => {
 
         return matchesCategory && matchesSearch && matchesSpecial;
     });
-
-    const totalBagCount = Object.values(quantities).reduce((sum, q) => sum + q, 0);
-    const totalBagAmount = Object.entries(quantities).reduce((sum, [id, qty]) => {
-        const item = menuItems.find((m) => m.id === id);
-        return sum + (item ? item.price * qty : 0);
-    }, 0);
 
     return (
         <main className="min-h-screen bg-neutral-50 py-8 px-4 sm:px-6 lg:px-8 pb-28">
@@ -186,11 +173,12 @@ export const MenuCatalog = ({ categories, menuItems }: MenuCatalogProps) => {
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {filteredItems.map((item) => {
-                            const qty = quantities[item.id] || 0;
+                            const qty = getItemQuantity(item.id);
                             const categoryLabel =
                                 item.category?.name ||
                                 categories.find((c) => c.id === item.categoryId)?.name ||
                                 'Menu Item';
+                            const displayImage = item.image;
 
                             return (
                                 <div
@@ -221,11 +209,11 @@ export const MenuCatalog = ({ categories, menuItems }: MenuCatalogProps) => {
                                             </div>
                                         </div>
 
-                                        {/* Visual Food Display Box (Uses backend image if present, falls back to icon) */}
+                                        {/* Visual Food Display Box */}
                                         <div className="h-36 w-full rounded-xl bg-neutral-50 border border-neutral-100 flex items-center justify-center relative mb-4 overflow-hidden">
-                                            {item.image ? (
+                                            {displayImage ? (
                                                 <img
-                                                    src={item.image}
+                                                    src={displayImage}
                                                     alt={item.name}
                                                     className="h-full w-full object-cover"
                                                 />
@@ -268,7 +256,15 @@ export const MenuCatalog = ({ categories, menuItems }: MenuCatalogProps) => {
                                         ) : qty === 0 ? (
                                             <button
                                                 type="button"
-                                                onClick={() => handleAdd(item.id)}
+                                                onClick={() =>
+                                                    addItem({
+                                                        menuItemId: item.id,
+                                                        name: item.name,
+                                                        price: item.price,
+                                                        imageUrl: displayImage,
+                                                        categoryName: categoryLabel,
+                                                    })
+                                                }
                                                 className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
                                             >
                                                 <Plus className="w-3.5 h-3.5" />
@@ -278,7 +274,7 @@ export const MenuCatalog = ({ categories, menuItems }: MenuCatalogProps) => {
                                             <div className="flex items-center bg-neutral-900 rounded-xl p-1 gap-1">
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleRemove(item.id)}
+                                                    onClick={() => updateQuantity(item.id, -1)}
                                                     className="h-7 w-7 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-white flex items-center justify-center transition-colors cursor-pointer"
                                                     aria-label="Decrease quantity"
                                                 >
@@ -289,7 +285,7 @@ export const MenuCatalog = ({ categories, menuItems }: MenuCatalogProps) => {
                                                 </span>
                                                 <button
                                                     type="button"
-                                                    onClick={() => handleAdd(item.id)}
+                                                    onClick={() => updateQuantity(item.id, 1)}
                                                     className="h-7 w-7 rounded-lg bg-amber-500 hover:bg-amber-600 text-white flex items-center justify-center transition-colors cursor-pointer"
                                                     aria-label="Increase quantity"
                                                 >
@@ -306,17 +302,17 @@ export const MenuCatalog = ({ categories, menuItems }: MenuCatalogProps) => {
             </div>
 
             {/* Floating Sticky Cart Summary Bar */}
-            {totalBagCount > 0 && (
+            {totalItems > 0 && (
                 <div className="fixed bottom-4 inset-x-0 z-30 px-4">
                     <div className="max-w-3xl mx-auto bg-neutral-900 border border-neutral-800 text-white rounded-2xl p-4 shadow-2xl flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
                             <div className="h-10 w-10 rounded-xl bg-amber-500 text-white font-extrabold text-sm flex items-center justify-center shrink-0">
-                                {totalBagCount}
+                                {totalItems}
                             </div>
                             <div>
                                 <p className="text-xs text-neutral-400">Bag Subtotal (+20 BDT delivery)</p>
                                 <p className="text-base font-extrabold text-white">
-                                    {totalBagAmount} <span className="text-xs font-semibold text-amber-400">BDT</span>
+                                    {subtotal} <span className="text-xs font-semibold text-amber-400">BDT</span>
                                 </p>
                             </div>
                         </div>
