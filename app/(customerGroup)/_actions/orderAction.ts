@@ -154,20 +154,23 @@ export const getMyOrdersAction = async (): Promise<IOrder[]> => {
     }
 };
 
+
 export const cancelOrderAction = async (orderId: string) => {
     try {
-        const authHeaders = await getAuthHeader();
-        if (!authHeaders.Authorization) {
+        const cookieStore = await cookies();
+        const token = cookieStore.get('accessToken')?.value;
+
+        if (!token) {
             return { success: false, message: 'Unauthorized request.' };
         }
 
         const res = await fetch(
-            `${process.env.BACKEND_APP_URL}/api/order/${orderId}/status`,
+            `${process.env.BACKEND_APP_URL}/api/order/${orderId}/cancel`,
             {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
-                    ...authHeaders,
+                    Authorization: `Bearer ${token}`,
                 },
                 body: JSON.stringify({ status: 'CANCELLED' }),
             }
@@ -194,6 +197,70 @@ export const cancelOrderAction = async (orderId: string) => {
         return {
             success: false,
             message: 'Network error while cancelling order.',
+        };
+    }
+};
+
+export const initiateOrderPaymentAction = async (
+    orderId: string,
+    provider: 'STRIPE' | 'SSLCOMMERZ' | string = 'STRIPE'
+) => {
+    try {
+        const cookieStore = await cookies();
+        const token = cookieStore.get('accessToken')?.value;
+
+        if (!token) {
+            return { success: false, message: 'Please log in to complete payment.' };
+        }
+
+        const endpoint =
+            provider === 'SSLCOMMERZ'
+                ? `${process.env.BACKEND_APP_URL}/api/payment/sslcommerz/init`
+                : `${process.env.BACKEND_APP_URL}/api/payment/stripe/checkout`;
+
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ orderId }),
+        });
+
+        const result = await res.json();
+
+        if (!res.ok || !result.success) {
+            return {
+                success: false,
+                message: result.message || 'Could not initialize payment gateway.',
+            };
+        }
+
+        const paymentUrl =
+            result.data?.url ||
+            result.data?.checkoutUrl ||
+            result.data?.sessionUrl ||
+            result.data?.paymentUrl ||
+            result.data?.gatewayUrl ||
+            result.data?.GatewayPageURL ||
+            null;
+
+        if (!paymentUrl) {
+            return {
+                success: false,
+                message: 'Payment checkout URL was not returned by the server.',
+            };
+        }
+
+        return {
+            success: true,
+            paymentUrl,
+        };
+    } catch (error) {
+        console.error('Error initiating payment:', error);
+        return {
+            success: false,
+            message: 'Network error while connecting to payment gateway.',
         };
     }
 };

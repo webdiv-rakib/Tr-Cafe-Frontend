@@ -1,7 +1,9 @@
+/* eslint-disable react-hooks/immutability */
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useTransition } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
     ShoppingBag,
     Clock,
@@ -16,8 +18,11 @@ import {
     ArrowRight,
     RotateCcw,
     FileText,
+    AlertCircle,
+    CreditCard,
+    Loader2,
 } from 'lucide-react';
-import { IOrder } from '../../_actions/orderAction';
+import { cancelOrderAction, initiateOrderPaymentAction, IOrder } from '../../_actions/orderAction';
 // Adjust import path if needed
 
 interface OrdersListProps {
@@ -32,9 +37,55 @@ const FILTER_TABS = [
 ] as const;
 
 export const OrdersList = ({ initialOrders }: OrdersListProps) => {
-    const [activeTab, setActiveTab] = useState<'ALL' | 'ACTIVE' | 'DELIVERED' | 'CANCELLED'>('ALL');
+    const router = useRouter();
+    const [isPending, startTransition] = useTransition();
 
-    const filteredOrders = initialOrders.filter((order) => {
+    const [orders, setOrders] = useState<IOrder[]>(initialOrders);
+    const [activeTab, setActiveTab] = useState<'ALL' | 'ACTIVE' | 'DELIVERED' | 'CANCELLED'>('ALL');
+    const [cancellingId, setCancellingId] = useState<string | null>(null);
+    const [payingId, setPayingId] = useState<string | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
+
+    const handleCancelOrder = async (orderId: string) => {
+        setActionError(null);
+        setCancellingId(orderId);
+
+        const res = await cancelOrderAction(orderId);
+
+        if (!res.success) {
+            setActionError(res.message);
+            setCancellingId(null);
+            return;
+        }
+
+        setOrders((prev) =>
+            prev.map((order) =>
+                order.id === orderId ? { ...order, status: 'CANCELLED' } : order
+            )
+        );
+        setCancellingId(null);
+
+        startTransition(() => {
+            router.refresh();
+        });
+    };
+
+    const handlePayNow = async (orderId: string, provider: string) => {
+        setActionError(null);
+        setPayingId(orderId);
+
+        const res = await initiateOrderPaymentAction(orderId, provider);
+
+        if (!res.success || !res.paymentUrl) {
+            setActionError(res.message || 'Unable to start payment session.');
+            setPayingId(null);
+            return;
+        }
+
+        window.location.href = res.paymentUrl;
+    };
+
+    const filteredOrders = orders.filter((order) => {
         if (activeTab === 'ALL') return true;
         if (activeTab === 'ACTIVE') {
             return ['PENDING', 'PREPARING', 'OUT_FOR_DELIVERY'].includes(order.status);
@@ -123,7 +174,7 @@ export const OrdersList = ({ initialOrders }: OrdersListProps) => {
                                 My Campus Orders
                             </h1>
                             <p className="text-xs sm:text-sm text-neutral-400 mt-1.5 max-w-lg">
-                                Track active DIU hall deliveries in real time, review itemized receipts, or reorder past favorites.
+                                Track active DIU hall deliveries in real time, complete pending online payments, or cancel unconfirmed orders.
                             </p>
                         </div>
 
@@ -138,18 +189,26 @@ export const OrdersList = ({ initialOrders }: OrdersListProps) => {
                     </div>
                 </div>
 
+                {/* Error Alert */}
+                {actionError && (
+                    <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2.5">
+                        <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                        <span>{actionError}</span>
+                    </div>
+                )}
+
                 {/* Filter Tabs */}
                 <div className="bg-white rounded-2xl border border-neutral-200/80 shadow-sm p-2 flex items-center gap-1.5 overflow-x-auto">
                     {FILTER_TABS.map((tab) => {
                         const isSelected = activeTab === tab.key;
                         const count =
                             tab.key === 'ALL'
-                                ? initialOrders.length
+                                ? orders.length
                                 : tab.key === 'ACTIVE'
-                                    ? initialOrders.filter((o) =>
+                                    ? orders.filter((o) =>
                                         ['PENDING', 'PREPARING', 'OUT_FOR_DELIVERY'].includes(o.status)
                                     ).length
-                                    : initialOrders.filter((o) => o.status === tab.key).length;
+                                    : orders.filter((o) => o.status === tab.key).length;
 
                         return (
                             <button
@@ -157,15 +216,15 @@ export const OrdersList = ({ initialOrders }: OrdersListProps) => {
                                 type="button"
                                 onClick={() => setActiveTab(tab.key)}
                                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${isSelected
-                                        ? 'bg-neutral-900 text-amber-400 shadow-2xs'
-                                        : 'text-neutral-600 hover:bg-neutral-100'
+                                    ? 'bg-neutral-900 text-amber-400 shadow-2xs'
+                                    : 'text-neutral-600 hover:bg-neutral-100'
                                     }`}
                             >
                                 <span>{tab.label}</span>
                                 <span
                                     className={`px-1.5 py-0.5 rounded-md text-[10px] font-bold ${isSelected
-                                            ? 'bg-amber-500/20 text-amber-300'
-                                            : 'bg-neutral-200/70 text-neutral-600'
+                                        ? 'bg-amber-500/20 text-amber-300'
+                                        : 'bg-neutral-200/70 text-neutral-600'
                                         }`}
                                 >
                                     {count}
@@ -182,10 +241,10 @@ export const OrdersList = ({ initialOrders }: OrdersListProps) => {
                             <ShoppingBag className="w-7 h-7" />
                         </div>
                         <h2 className="text-lg font-extrabold text-neutral-900">
-                            {initialOrders.length === 0 ? 'No orders placed yet' : 'No orders in this category'}
+                            {orders.length === 0 ? 'No orders placed yet' : 'No orders in this category'}
                         </h2>
                         <p className="text-xs text-neutral-500 max-w-sm mx-auto">
-                            {initialOrders.length === 0
+                            {orders.length === 0
                                 ? 'Hungry on campus? Browse our menu and place your first DIU delivery order!'
                                 : "You don't have any orders matching this status filter right now."}
                         </p>
@@ -211,6 +270,13 @@ export const OrdersList = ({ initialOrders }: OrdersListProps) => {
 
                             const paymentProvider = order.payment?.provider || 'COD';
                             const paymentStatus = order.payment?.status || 'PENDING';
+
+                            const canPayNow =
+                                order.status !== 'CANCELLED' &&
+                                paymentProvider !== 'COD' &&
+                                paymentStatus === 'PENDING';
+
+                            const canCancel = order.status === 'PENDING';
 
                             return (
                                 <div
@@ -259,18 +325,18 @@ export const OrdersList = ({ initialOrders }: OrdersListProps) => {
                                                         <div key={s.step} className="space-y-1.5">
                                                             <div
                                                                 className={`h-2 rounded-full transition-all ${isDone
-                                                                        ? 'bg-emerald-500'
-                                                                        : isCurrent
-                                                                            ? 'bg-amber-500'
-                                                                            : 'bg-neutral-200'
+                                                                    ? 'bg-emerald-500'
+                                                                    : isCurrent
+                                                                        ? 'bg-amber-500'
+                                                                        : 'bg-neutral-200'
                                                                     }`}
                                                             />
                                                             <p
                                                                 className={`text-[11px] font-semibold ${isDone
-                                                                        ? 'text-emerald-700'
-                                                                        : isCurrent
-                                                                            ? 'text-amber-600'
-                                                                            : 'text-neutral-400'
+                                                                    ? 'text-emerald-700'
+                                                                    : isCurrent
+                                                                        ? 'text-amber-600'
+                                                                        : 'text-neutral-400'
                                                                     }`}
                                                             >
                                                                 {s.label}
@@ -364,12 +430,12 @@ export const OrdersList = ({ initialOrders }: OrdersListProps) => {
                                                     </span>
                                                     <p
                                                         className={`text-[11px] font-bold uppercase mt-0.5 ${paymentStatus === 'PAID'
-                                                                ? 'text-emerald-600'
-                                                                : paymentStatus === 'FAILED'
-                                                                    ? 'text-red-600'
-                                                                    : paymentStatus === 'REFUNDED'
-                                                                        ? 'text-neutral-500'
-                                                                        : 'text-amber-600'
+                                                            ? 'text-emerald-600'
+                                                            : paymentStatus === 'FAILED'
+                                                                ? 'text-red-600'
+                                                                : paymentStatus === 'REFUNDED'
+                                                                    ? 'text-neutral-500'
+                                                                    : 'text-amber-600'
                                                             }`}
                                                     >
                                                         {paymentStatus}
@@ -377,13 +443,57 @@ export const OrdersList = ({ initialOrders }: OrdersListProps) => {
                                                 </div>
                                             </div>
 
-                                            <Link
-                                                href="/menu"
-                                                className="w-full py-2 px-3 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-amber-400 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
-                                            >
-                                                <RotateCcw className="w-3.5 h-3.5" />
-                                                <span>Reorder Meal</span>
-                                            </Link>
+                                            {/* Pay Now CTA for Pending SSLCommerz / Stripe Orders */}
+                                            {canPayNow && (
+                                                <button
+                                                    type="button"
+                                                    disabled={payingId === order.id}
+                                                    onClick={() => handlePayNow(order.id, paymentProvider)}
+                                                    className="w-full py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 disabled:opacity-60 text-white font-semibold text-xs shadow-sm shadow-amber-500/20 transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+                                                >
+                                                    {payingId === order.id ? (
+                                                        <>
+                                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                            <span>Connecting to {paymentProvider}...</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <CreditCard className="w-3.5 h-3.5" />
+                                                            <span>Pay Now ({order.totalAmount} BDT)</span>
+                                                        </>
+                                                    )}
+                                                </button>
+                                            )}
+
+                                            {/* Cancel Order CTA for Pending Orders, otherwise Reorder */}
+                                            {canCancel ? (
+                                                <button
+                                                    type="button"
+                                                    disabled={cancellingId === order.id || isPending}
+                                                    onClick={() => handleCancelOrder(order.id)}
+                                                    className="w-full py-2 px-3 rounded-xl bg-red-50 hover:bg-red-100 disabled:opacity-60 border border-red-200/80 text-red-600 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-not-allowed"
+                                                >
+                                                    {cancellingId === order.id ? (
+                                                        <>
+                                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                            <span>Cancelling Order...</span>
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <AlertCircle className="w-3.5 h-3.5" />
+                                                            <span>Cancel Order</span>
+                                                        </>
+                                                    )}
+                                                </button>
+                                            ) : (
+                                                <Link
+                                                    href="/menu"
+                                                    className="w-full py-2 px-3 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-amber-400 font-semibold text-xs transition-colors flex items-center justify-center gap-1.5"
+                                                >
+                                                    <RotateCcw className="w-3.5 h-3.5" />
+                                                    <span>Reorder Meal</span>
+                                                </Link>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
