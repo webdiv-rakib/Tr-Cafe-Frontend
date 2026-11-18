@@ -1,7 +1,8 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @next/next/no-img-element */
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
     UtensilsCrossed,
@@ -18,6 +19,8 @@ import {
 import { useRouter } from 'next/navigation';
 import { logout } from '@/service/logout';
 import { toast } from 'sonner';
+import { useCart } from '@/app/(customerGroup)/cart/_components/CartContext';
+// Adjust import path if your CartContext lives elsewhere
 
 const NAV_LINKS = [
     { label: 'Home', href: '/' },
@@ -51,17 +54,45 @@ type NavBarProps = {
 export const Navbar = ({ user }: NavBarProps) => {
     const [dropdownOpen, setDropdownOpen] = useState(false);
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    const { items } = useCart();
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    const totalCartCount = mounted
+        ? items.reduce((sum, item) => sum + (item.quantity || 1), 0)
+        : 0;
 
     const profile = user?.data?.profile;
     const initial = profile?.name?.charAt(0).toUpperCase() || 'U';
     const router = useRouter();
+
     const handleUserMenuAction = async (action: string) => {
         if (action === 'logout') {
             await logout();
             toast.success("User Logged Out Successfully!");
             router.push("/login");
         }
-    }
+    };
+
+    const getDashboardHref = (role?: string) => {
+        switch (role?.toUpperCase()) {
+            case 'ADMIN':
+                return '/admin';
+            case 'STAFF':
+                return '/staff';
+            case 'RIDER':
+                return '/rider';
+            case 'CUSTOMER':
+            default:
+                return '/customer-dashboard';
+        }
+    };
+
+    const dashboardHref = getDashboardHref(profile?.role);
 
     return (
         <header className="sticky top-0 z-40 w-full bg-neutral-900/95 backdrop-blur-md border-b border-neutral-800">
@@ -98,16 +129,18 @@ export const Navbar = ({ user }: NavBarProps) => {
 
                     {/* Right: Cart + Auth Buttons / User Dropdown */}
                     <div className="flex items-center gap-3">
-                        {/* Cart Button */}
+                        {/* Live Cart Button */}
                         <Link
                             href="/cart"
                             className="relative p-2.5 rounded-xl bg-neutral-800/80 hover:bg-neutral-800 border border-neutral-700/80 text-neutral-200 hover:text-amber-400 transition-colors"
                             title="View Cart"
                         >
                             <ShoppingBag className="w-4 h-4" />
-                            <span className="absolute -top-1.5 -right-1.5 h-4 min-w-4 px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
-                                2
-                            </span>
+                            {totalCartCount > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 h-4 min-w-4 px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center shadow-sm">
+                                    {totalCartCount}
+                                </span>
+                            )}
                         </Link>
 
                         {profile ? (
@@ -170,7 +203,7 @@ export const Navbar = ({ user }: NavBarProps) => {
                                             </Link>
 
                                             <Link
-                                                href="/dashboard"
+                                                href={dashboardHref}
                                                 onClick={() => setDropdownOpen(false)}
                                                 className="flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-neutral-300 hover:text-white hover:bg-neutral-800 rounded-xl transition-colors"
                                             >
