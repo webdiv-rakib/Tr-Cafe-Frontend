@@ -14,7 +14,7 @@ export interface IMenuItem {
     name: string;
     description: string;
     price: number;
-    image?: string | null;
+    imageUrl?: string | null;
     categoryId: string;
     category?: {
         id: string;

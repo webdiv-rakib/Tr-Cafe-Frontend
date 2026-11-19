@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { ICategory, IMenuItem } from '../../_actions/menuActions';
 import { useCart } from '../../cart/_components/CartContext';
- // Adjust import path if your CartContext is elsewhere
+// Adjust import path if your CartContext is elsewhere
 
 interface MenuCatalogProps {
     categories: ICategory[];
@@ -108,8 +108,8 @@ export const MenuCatalog = ({ categories, menuItems }: MenuCatalogProps) => {
                             type="button"
                             onClick={() => setSpecialsOnly((prev) => !prev)}
                             className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${specialsOnly
-                                    ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
-                                    : 'bg-neutral-50 hover:bg-neutral-100 text-neutral-700 border-neutral-200'
+                                ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                                : 'bg-neutral-50 hover:bg-neutral-100 text-neutral-700 border-neutral-200'
                                 }`}
                         >
                             <Sparkles className="w-3.5 h-3.5" />
@@ -125,8 +125,8 @@ export const MenuCatalog = ({ categories, menuItems }: MenuCatalogProps) => {
                             type="button"
                             onClick={() => setSelectedCategoryId('ALL')}
                             className={`px-4 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${selectedCategoryId === 'ALL'
-                                    ? 'bg-neutral-900 text-amber-400 shadow-2xs'
-                                    : 'bg-neutral-100 hover:bg-neutral-200/70 text-neutral-600'
+                                ? 'bg-neutral-900 text-amber-400 shadow-2xs'
+                                : 'bg-neutral-100 hover:bg-neutral-200/70 text-neutral-600'
                                 }`}
                         >
                             All ({menuItems.length})
@@ -140,8 +140,8 @@ export const MenuCatalog = ({ categories, menuItems }: MenuCatalogProps) => {
                                     type="button"
                                     onClick={() => setSelectedCategoryId(category.id)}
                                     className={`px-4 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${isActive
-                                            ? 'bg-neutral-900 text-amber-400 shadow-2xs'
-                                            : 'bg-neutral-100 hover:bg-neutral-200/70 text-neutral-600'
+                                        ? 'bg-neutral-900 text-amber-400 shadow-2xs'
+                                        : 'bg-neutral-100 hover:bg-neutral-200/70 text-neutral-600'
                                         }`}
                                 >
                                     {category.name}
@@ -178,14 +178,14 @@ export const MenuCatalog = ({ categories, menuItems }: MenuCatalogProps) => {
                                 item.category?.name ||
                                 categories.find((c) => c.id === item.categoryId)?.name ||
                                 'Menu Item';
-                            const displayImage = item.image;
+                            const displayImage = item.imageUrl;
 
                             return (
                                 <div
                                     key={item.id}
                                     className={`bg-white rounded-2xl border border-neutral-200/80 shadow-sm p-5 flex flex-col justify-between transition-all ${item.isAvailable
-                                            ? 'hover:shadow-md hover:border-amber-300/80'
-                                            : 'opacity-70'
+                                        ? 'hover:shadow-md hover:border-amber-300/80'
+                                        : 'opacity-70'
                                         }`}
                                 >
                                     <div>
