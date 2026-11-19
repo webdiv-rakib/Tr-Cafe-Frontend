@@ -20,7 +20,7 @@ export const HeroSection = () => {
 
                         <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight leading-tight">
                             Craving Fast Food? <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-amber-600">
+                            <span className="text-transparent bg-clip-text bg-linear-to-r from-amber-400 to-amber-600">
                                 Delivered Hot & Fresh.
                             </span>
                         </h1>
@@ -66,7 +66,7 @@ export const HeroSection = () => {
 
                     {/* Right Hero Graphic Card */}
                     <div className="relative flex justify-center lg:justify-end">
-                        <div className="relative w-full max-w-md bg-gradient-to-b from-neutral-800/80 to-neutral-900 border border-neutral-700/60 rounded-3xl p-6 shadow-2xl backdrop-blur-sm">
+                        <div className="relative w-full max-w-md bg-linear-to-b from-neutral-800/80 to-neutral-900 border border-neutral-700/60 rounded-3xl p-6 shadow-2xl backdrop-blur-sm">
                             <div className="flex items-center justify-between pb-4 border-b border-neutral-800">
                                 <span className="text-xs font-semibold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                                     <Sparkles className="w-4 h-4" /> Today&apos;s Featured Pick
